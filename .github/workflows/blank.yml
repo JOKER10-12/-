@@ -1,0 +1,148 @@
+import pygame
+import random
+import time
+
+# 초기화
+pygame.init()
+
+# 게임 화면 설정
+screen_width = 800
+screen_height = 600
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("Galaga Game")
+
+# 색상 정의
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+
+# 글꼴 설정
+font = pygame.font.SysFont("Arial", 24)
+
+# 플레이어 클래스
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface((50, 40))
+        self.image.fill(WHITE)
+        self.rect = self.image.get_rect()
+        self.rect.center = (screen_width // 2, screen_height - 50)
+        self.speed = 5
+
+    def update(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] and self.rect.left > 0:
+            self.rect.x -= self.speed
+        if keys[pygame.K_RIGHT] and self.rect.right < screen_width:
+            self.rect.x += self.speed
+
+# 적 클래스
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, speed):
+        super().__init__()
+        self.image = pygame.Surface((50, 40))
+        self.image.fill(RED)
+        self.rect = self.image.get_rect()
+        self.rect.x = random.randint(0, screen_width - 50)
+        self.rect.y = random.randint(-100, -40)
+        self.speed = speed
+
+    def update(self):
+        self.rect.y += self.speed
+        if self.rect.top > screen_height:
+            self.rect.x = random.randint(0, screen_width - 50)
+            self.rect.y = random.randint(-100, -40)
+
+# 총알 클래스
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((5, 10))
+        self.image.fill(WHITE)
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.speed = 7
+
+    def update(self):
+        self.rect.y -= self.speed
+        if self.rect.bottom < 0:
+            self.kill()
+
+# 게임 루프
+def game_loop():
+    clock = pygame.time.Clock()
+    all_sprites = pygame.sprite.Group()
+    enemies = pygame.sprite.Group()
+    bullets = pygame.sprite.Group()
+
+    player = Player()
+    all_sprites.add(player)
+
+    # 적 생성
+    enemy_speed = 2
+    for _ in range(5):
+        enemy = Enemy(enemy_speed)
+        all_sprites.add(enemy)
+        enemies.add(enemy)
+
+    score = 0
+    start_time = time.time()
+    last_score_time = time.time()  # 마지막 점수 증가 시간
+    running = True
+    while running:
+        clock.tick(60)  # 60 FPS로 게임 속도 조절
+
+        elapsed_time = time.time() - start_time
+        # 시간이 지나면 적 속도 증가
+        if elapsed_time > 10:  # 10초마다 적 속도 증가
+            enemy_speed += 1
+            start_time = time.time()  # 시간 리셋
+            for enemy in enemies:
+                enemy.speed = enemy_speed
+
+        # 시간에 따라 점수 증가
+        if time.time() - last_score_time > 1:  # 1초마다 점수 증가
+            score += 1
+            last_score_time = time.time()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    bullet = Bullet(player.rect.centerx, player.rect.top)
+                    all_sprites.add(bullet)
+                    bullets.add(bullet)
+
+        all_sprites.update()
+
+        # 총알과 적의 충돌 확인
+        for bullet in bullets:
+            enemy_hits = pygame.sprite.spritecollide(bullet, enemies, True)
+            for hit in enemy_hits:
+                bullet.kill()
+                enemy = Enemy(enemy_speed)
+                all_sprites.add(enemy)
+                enemies.add(enemy)
+                score += 10  # 점수 증가
+
+        # 화면 그리기
+        screen.fill(BLACK)
+
+        # 점수 및 시간 표시
+        score_text = font.render(f"Score: {score}", True, GREEN)
+        screen.blit(score_text, (10, 10))
+
+        elapsed_time_text = font.render(f"Time: {int(elapsed_time)}s", True, GREEN)
+        screen.blit(elapsed_time_text, (screen_width - 150, 10))
+
+        all_sprites.draw(screen)
+
+        pygame.display.flip()
+
+    pygame.quit()
+
+# 게임 시작
+game_loop()
+양 옆으로 이동하여 공격해오는 것들을 피하며 시간이 지날때마나 점수를 얻는게임
